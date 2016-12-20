@@ -1,12 +1,27 @@
-class Person(val name: String)
-
-interface Rule
 interface Fact
+interface Rule
+interface Query
+
+class Person(val name: String) {
+    override fun toString(): String {
+        return name
+    }
+}
+
+//Grandfather rule, should have a list of grandchildren. Currently it's a one-to-one
+class GrandFather(val fatherXY: Father, val fatherYZ: Father) : Rule {
+    override fun toString(): String {
+        return "${fatherXY.father} is grandfather of ${fatherYZ.child}"
+    }
+}
+
+//This list is used to store father facts
+var fathers: MutableList<Father> = mutableListOf()
 
 class Father(val father: Person, val child: Person) : Fact {
 
-    companion object {
-        val fathers: MutableList<Father> = arrayListOf()
+    init {
+        fathers.add(this)
     }
 
     override fun toString(): String {
@@ -14,65 +29,76 @@ class Father(val father: Person, val child: Person) : Fact {
     }
 }
 
-class GrandFather(val grandFather: Person, val grandChild : Person) : Fact {
+infix fun Fact.and(other: Fact): Rule? {
 
-    companion object {
-        val grandfathers: MutableList<GrandFather> = arrayListOf()
-    }
+    var grandFatherRelation: Rule? = null
 
-    override fun toString() : String {
-        return "${grandFather.name} is the grandfather of ${grandChild.name}"
+    if (this is Father && other is Father) {
+        grandFatherRelation = GrandFather(this, other)
     }
+    return grandFatherRelation
 }
 
-class AndOperator(val left: Fact, val right: Fact) : Fact {
 
-    override fun toString(): String {
-        return "$left and $right"
+class FactQuery() : Query {
+    //Todo use overload instead of two methods.
+    fun sonQuery(queryName: Person): Fact {
+        fathers.forEach {
+            if (it.father == queryName) {
+                return it
+            }
+        }
+        //Should not be here :)
+        return Father(queryName, Person("nobody"))
     }
+
+    fun fatherQuery(queryName: Person) : Fact {
+        fathers.forEach {
+            if(it.child == queryName){
+                return it
+            }
+        }
+        //Should not be here :)
+        return Father(Person("God"), queryName)
+    }
+
 }
 
-infix fun Fact.and(other: Fact): AndOperator {
-    return AndOperator(this, other)
-}
-
-fun main(args: Array<String>) {
+fun main(arguments: Array<String>) {
 
     val p0 = Person("Christian")
     val p1 = Person("Anders")
-    val p2 = Person("Dorte")
-    val p3 = Person("Erik")
-    val p4 = Person("Niels")
-    val p5 = Person("God")
+    val p2 = Person("Erik")
+    val p3 = Person("Niels")
 
-    Father.fathers.add(Father(p1, p0))
-    Father.fathers.add(Father(p3, p1))
-    Father.fathers.add(Father(p3, p2))
-    Father.fathers.add(Father(p4, p3))
+    Father(p1, p0)
+    Father(p2, p1)
+    Father(p3, p2)
 
-    //God
-    Father.fathers.add(Father(p5,p0))
-    Father.fathers.add(Father(p5,p1))
-    Father.fathers.add(Father(p5,p2))
-    Father.fathers.add(Father(p5,p3))
-    Father.fathers.add(Father(p5,p4))
+    /*
+    Find first fact
+    Find second fact, from the child of fact one
+    Create a Grandfather rule from the two facts
+     */
+    var q = FactQuery()
 
-    var f0 = Father.fathers.get(1) and Father.fathers.get(2)
+    var fact1 = q.sonQuery(p3)
+    if (fact1 is Father) {
+        var fact2 = q.sonQuery(fact1.child)
 
-    var god = Father.fathers.get(4) and Father.fathers.get(5) and Father.fathers.get(6) and Father.fathers.get(7) and Father.fathers.get(8)
+        var grandFatherRule = fact1 and fact2
 
-    GrandFather.grandfathers.add(GrandFather(p4, p2))
-    GrandFather.grandfathers.add(GrandFather(p4, p1))
-    GrandFather.grandfathers.add(GrandFather(p3, p0))
+        println(grandFatherRule)
+    }
 
-    var g0 = GrandFather.grandfathers.get(0) and GrandFather.grandfathers.get(1)
+    var fact3 = q.fatherQuery(p0)
+    if(fact3 is Father){
+        var fact4 = q.fatherQuery(fact3.father)
 
-    println(f0)
-    println(g0)
-    println(god)
+        var grandFatherRule = fact4 and fact3
 
+        println(grandFatherRule)
+    }
 
 
 }
-
-
